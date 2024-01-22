@@ -4,7 +4,7 @@
 =#
 
 # 预先条件引入 # ! 不引入会导致无法使用符号
-@isdefined(BabelNARImplements) || include(raw"test_console$import.jl")
+@isdefined(BabelNAR_Implements) || include(raw"console$import.jl")
 
 "启动Websocket服务器"
 function launchWSServer(consoleWS::NARSConsoleWithServer, host::String, port::Int)
@@ -196,4 +196,4 @@ main_launch(consoleWS) = launch!(
 )
 
 # 最终引入
-include("test_console.jl")
+include("console.jl")

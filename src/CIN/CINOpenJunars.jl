@@ -1,4 +1,4 @@
-# ! be included in: BabelNARImplements.jl @ module BabelNARImplements
+# ! be included in: BabelNAR_Implements.jl @ module BabelNAR_Implements
 
 # 导入
 import BabelNAR: isAlive, launch!, terminate!, getNARSType, getConfig

@@ -1,9 +1,9 @@
 # 预先条件引入 # ! 不引入会导致无法使用符号
-@isdefined(BabelNARImplements) || include(raw"test_console$import.jl")
+@isdefined(BabelNAR_Implements) || include(raw"console$import.jl")
 
 # 引入其它配置 #
-include(raw"test_console_NAVM$config.jl")
-include(raw"test_console_ServerOutFormat$config.jl")
+include(raw"console_NAVM$config.jl")
+include(raw"console_ServerOutFormat$config.jl")
 
 # 覆盖配置 #
 
@@ -39,4 +39,4 @@ function main_address(
 end
 
 # 最终引入
-include("test_console_WSServer.jl")
+include("console_WSServer.jl")

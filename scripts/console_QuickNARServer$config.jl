@@ -1,5 +1,5 @@
 # 预先条件引入 # ! 不引入会导致无法使用符号
-@isdefined(BabelNARImplements) || include(raw"test_console$import.jl")
+@isdefined(BabelNAR_Implements) || include(raw"console$import.jl")
 
 "覆盖：默认OpenNARS"
 main_type(::CINType)::CINType = TYPE_OPENNARS

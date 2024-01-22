@@ -33,7 +33,7 @@ Pkg.add(url="https://github.com/ARCJ137442/BabelNAR-Implements")
 
 运行CIN所需的所有**可执行文件**（需要用到的`.jar`、`.exe`等），都需放在与`src`同级的`executables`目录；
 
-这个路径也可通过通过配置`test_console.jl`中的`paths`变量：
+这个路径也可通过通过配置`console.jl`中的`paths`变量：
 
 ```julia
 paths::Dict = Dict([
@@ -56,20 +56,20 @@ paths::Dict = Dict([
 
 ### 快速启动
 
-在有Julia环境的电脑上，可尝试运行源码中的`Implements/test/test_console.jl`：
+在有Julia环境的电脑上，可尝试运行源码中的`scripts/console.jl`：
 
 ```bash
 cd BabelNAR
-julia Implements/test/test_console.jl
+julia scripts/console.jl
 ```
 
-或运行`Implements/test/test_console_WSServer.jl`
+或运行`scripts/console_WSServer.jl`
 
 - 需要Julia环境安装有 **SimpleWebsockets** 、 **JSON** 包
 
 ```bash
 cd BabelNAR
-julia Implements/test/test_console_WSServer.jl
+julia scripts/console_WSServer.jl
 ```
 
 ## 代码规范 Notes

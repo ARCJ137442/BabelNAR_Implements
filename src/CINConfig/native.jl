@@ -1,4 +1,4 @@
-# ! be included in: BabelNARImplements.jl @ BabelNARImplements
+# ! be included in: BabelNAR_Implements.jl @ BabelNAR_Implements
 
 """
 本文件主要用于预设「一般情况下使用的CIN配置」

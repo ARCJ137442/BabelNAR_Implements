@@ -5,7 +5,7 @@
     ! 当在「加载路径」添加了太多「本地值」时，可能会把「依赖中的本地包」和「加载路径上的本地包」一同引入
     * 这样的引入会导致「看似都是同一个包（这里是BabelNAR），
       * 但实际上『从本地直接引入的一级包』和『从本地其它包二级引入的同名包』不一样」的场景
-    * 本文件的例子就是：从`LOAD_PATH`和`BabelNARImplements`分别引入了俩`BabelNAR`，一个「纯本地」一个「纯本地被引入」
+    * 本文件的例子就是：从`LOAD_PATH`和`BabelNAR_Implements`分别引入了俩`BabelNAR`，一个「纯本地」一个「纯本地被引入」
     * 📌没意识到的就是：这俩包 居 然 是 不 一 样 的
     ! 于是就会发生冲突——或者，「奇怪的不相等」
     * 比如「同样都是一个位置的同名结构」，两个「NARSType」死活不相等
@@ -13,12 +13,12 @@
     * 然后导致了「缺方法」的假象
         * 一个「一级本地类A1」配一个「二级本地类B2」想混合着进函数f，
         * 结果`f(a::A1, b::B1)`和`f(a::A2, b::B2)`都匹配不上
-    * 于是根子上就是「看起来`BabelNAR.CIN.NARSType`和`NARSType`是一致的，但实际上不同的是`BabelNAR`和`BabelNARImplements.BabelNAR`」的情况
+    * 于是根子上就是「看起来`BabelNAR.CIN.NARSType`和`NARSType`是一致的，但实际上不同的是`BabelNAR`和`BabelNAR_Implements.BabelNAR`」的情况
     * 记录时间：【2023-11-02 01:36:43】
 =#
 
 # 条件引入
-@isdefined(BabelNARImplements) || include(raw"test_console$import.jl")
+@isdefined(BabelNAR_Implements) || include(raw"console$import.jl")
 
 """
 用于获取用户输入的「NARS类型」
