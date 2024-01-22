@@ -125,19 +125,19 @@ uuid = "a63ad114-7e13-5084-954f-fe012c677804"
 
 [[deps.NAVM]]
 deps = ["JuNarsese", "PikaParser", "Reexport"]
-git-tree-sha1 = "5813218cb0aec72dc1a53934e1f008c0d73e7d87"
+git-tree-sha1 = "4807167499f68c01dd826b9715c2b495ebf195ec"
 repo-rev = "main"
 repo-url = "https://github.com/ARCJ137442/NAVM.jl"
 uuid = "2245f648-40fa-438d-8bb4-5b93bf8a933b"
-version = "0.2.3"
+version = "0.3.0"
 
 [[deps.NAVM_Implements]]
 deps = ["JuNarsese", "JuNarseseParsers", "NAVM"]
-git-tree-sha1 = "b3d72515921a7117dd8d345d694baf93b07cc3bb"
+git-tree-sha1 = "9dc523bc8dfe4fe37e056a4749379404c641c2ea"
 repo-rev = "master"
 repo-url = "https://github.com/ARCJ137442/NAVM_Implements"
 uuid = "60a2844f-9e68-4e7b-855c-e56e218f0267"
-version = "0.1.0"
+version = "0.1.2"
 
 [[deps.NetworkOptions]]
 uuid = "ca575930-c2e3-43a9-ace4-1e988b2c1908"

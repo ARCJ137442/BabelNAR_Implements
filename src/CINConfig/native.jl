@@ -20,9 +20,14 @@ export type WebNARSOutput = {
 """
 
 # 使用NAVM包 # ! 下面的符号截止至【2024-01-22 17:54:19】
-using NAVM: @nair, Backend, BackendModule, Frontend, FrontendModule
-using NAVM.NAIR: NarseseObject, CMD_CYC, CMD_DEL, CMD_HLP, CMD_INF, CMD_LOA, CMD_NEW, CMD_NSE, CMD_REM, CMD_RES, CMD_SAV, CMD_VOL
-using NAVM: NAIR, NAIR_CMD, NAIR_FOLDS, NAIR_GRAMMAR, NAIR_INSTRUCTION_SET, NAIR_RULES, NAVM, NAVM_Module
+using NAVM: Backend, BackendModule, Frontend, FrontendModule
+using NAVM.NAIR: NarseseObject, NAIR_CMD, 
+                 CMD_SAV, CMD_LOA, CMD_RES, 
+                 CMD_NSE, 
+                 CMD_NEW, CMD_DEL, 
+                 CMD_CYC, CMD_VOL, CMD_INF, CMD_REG,
+                 CMD_HLP, CMD_REM
+using NAVM: NAIR, NAIR_FOLDS, NAIR_GRAMMAR, NAIR_INSTRUCTION_SET, NAIR_RULES, NAVM, NAVM_Module
 using NAVM: chain, #= try_form_cmd,  =#form_cmd, parse_cmd, tryparse_cmd, source_type, target_type, transform, try_transform
 @debug names(NAVM)
 
@@ -30,7 +35,6 @@ using NAVM: chain, #= try_form_cmd,  =#form_cmd, parse_cmd, tryparse_cmd, source
 @debug names(NAVM_Implements)
 using NAVM_Implements: BE_NARS_Python, BE_ONA, BE_OpenJunars, BE_OpenNARS, BE_PyNARS
 using NAVM_Implements: FE_TextParser
-using NAVM_Implements: Implements
 
 export NATIVE_CIN_CONFIGS
 export NATIVE_CIN_TYPES, TYPE_OPENNARS, TYPE_ONA, TYPE_NARS_PYTHON, TYPE_OPEN_JUNARS, TYPE_PYNARS
