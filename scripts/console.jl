@@ -59,17 +59,27 @@ function get_valid_NARS_type_from_input(
 end
 
 begin # * 可执行文件路径
+    #= # * 以下为示例内容（最后更新于2024-01-22 22:32:43 @ Windows 10）
+    # ! 文件的上下文由`console.jl`提供
     # 获取文件所在目录的上一级目录（包根目录）
-    EXECUTABLE_ROOT = joinpath(dirname(dirname(@__DIR__)), "executables")
-    JER(name) = joinpath(EXECUTABLE_ROOT, name)
-
-    paths::Dict = Dict([
-        TYPE_OPENNARS => "opennars.jar" |> JER
-        TYPE_ONA => "NAR.exe" |> JER
-        TYPE_NARS_PYTHON => "main.exe" |> JER
-        TYPE_OPEN_JUNARS => raw"..\..\..\..\OpenJunars-main"
-        TYPE_PYNARS => raw"launch_console_plus.cmd" |> JER
+    # EXECUTABLE_ROOT = joinpath(dirname(dirname(@__DIR__)), "executables")
+    "函数式计算相对路径：生成一个「文件名 -> 完整路径」的函数"
+    join_root(n::Integer, bases::Vararg{AbstractString}; root=@__DIR__) = (
+        n == 0
+            ? name -> joinpath(root, bases..., name)
+            # 惰性递归求值（只有在传递参数的时候，才真正开始求函数）
+            : name -> join_root(n-1, bases...; root=dirname(root))(name)
+    )
+    
+    Dict([
+        TYPE_OPENNARS => "opennars.jar" |> join_root(2, "executables")
+        TYPE_ONA => "NAR.exe" |> join_root(3, "NAR", "OpenNARS-for-Applications")
+        TYPE_NARS_PYTHON => "main.exe" |> join_root(2, "executables")
+        TYPE_OPEN_JUNARS => "" |> join_root(3, "NAR", "OpenJunars")
+        TYPE_PYNARS => "launch-pynars-console-plus.cmd" |> join_root(2, "executables")
     ])
+    =#
+    paths::Dict = include("CIN-paths.local.jl")
 end
 
 
@@ -101,7 +111,9 @@ end)
     ( # 可选的「服务器」
         (@isdefined IP) && (@isdefined PORT) ?
         (IP, PORT) : tuple()
-    )...
+    )...,
+    # *【2024-01-22 23:19:51】使用0.1s的延迟，让CIN先将自身文本输出完，再打印提示词✅
+    delay_between_input=0.1
 ))
 # * 主函数
 @isdefined(main) || function main()

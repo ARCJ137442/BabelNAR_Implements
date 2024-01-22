@@ -192,7 +192,9 @@ end
 "覆盖：可选启动服务器"
 main_launch(consoleWS) = launch!(
     consoleWS;
-    main_address()...
+    main_address()...,
+    # *【2024-01-22 23:19:51】使用0.1s的延迟，让CIN先将自身文本输出完，再打印提示词✅
+    delay_between_input=0.1
 )
 
 # 最终引入
