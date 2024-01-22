@@ -1,0 +1,6 @@
+# VSCode
+/.dist
+/.vscode
+
+# 日志
+*.log
