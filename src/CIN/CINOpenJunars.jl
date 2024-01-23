@@ -240,7 +240,7 @@ function Base.put!(cj::CINOpenJunars, input::String)
     # 过滤空值
     isempty(input) && return
     # 兼容「`:c X`⇒循环X周期」的情况：直接去掉「`:c `前缀」
-    if input[1:3] == ":c "
+    if startswith(input, ":c ")
         input = input[4:end]
     end
     # 若可以被转换为整数：执行cycle
