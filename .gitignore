@@ -7,3 +7,6 @@
 
 # 本地文件
 *.local.*
+
+# 本地配置
+Manifest.toml
