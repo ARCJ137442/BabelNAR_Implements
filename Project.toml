@@ -5,7 +5,6 @@ version = "0.2.1"
 
 [deps]
 BabelNAR = "b7421120-50f0-43fc-8b2b-7721c3d5cbfc"
-JuNarsese = "11330a76-bea1-45e0-8f80-7114e2f607b1"
 NAVM = "2245f648-40fa-438d-8bb4-5b93bf8a933b"
 NAVM_Implements = "60a2844f-9e68-4e7b-855c-e56e218f0267"
 
