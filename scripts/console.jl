@@ -118,7 +118,7 @@ end)
 # * 主函数
 @isdefined(main) || function main()
 
-    "================Test for Console================" |> println
+    "<================BabelNAR Console================>" |> println
 
     global not_VSCode_running
 

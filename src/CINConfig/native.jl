@@ -178,46 +178,47 @@ const NATIVE_CIN_CONFIGS::CINConfigDict = CINConfigDict( # * Julia的「类型�
             local objects::Vector{NamedTuple} = NamedTuple[]
             local match_type = match(r"^(\w+): ", line) # EXE: XXXX # ! 只截取「开头纯英文，末尾为『: 』」的内容，并提取其中的「纯英文」
 
-            # * 头都是空的⇒不处理（返回空数组）
-            if isnothing(match_type) #
+            local content, output_type # 预先定义输出变量 # !【2024-01-25 15:41:53】现在只要CIN响应，一定会有输出
+            # * 头都是空的⇒「口袋类型」OTHER+整行（如`executed based on [...]`这类信息）
+            if isnothing(match_type)
+                content = line # 直接使用整行
+                output_type = NARSOutputType.OTHER
             else
                 # 统一获取输出内容
-                local content = line[length(match_type[1])+3:end] # 翻译成统一的「NARS输出类型」 # !【2023-11-26 14:05:28】现在屏蔽掉冒号
-                local output_type = typeTranslate_OpenNARS(match_type[1])
-
-                # * 操作截取：匹配「EXE: 」开头的行 # 例句：EXE: $1.00;0.99;1.00$ ^right([{SELF}, x])=null
-                if output_type == NARSOutputType.EXE # ! 这里可能是SubString，所以不能使用全等号
-                    # 使用正则表达式r"表达式"与「match」字符串方法，并使用括号选定其中返回的第一项
-                    # 样例：`^left([{SELF}])`
-                    local match_operation = match(r"(\^\w+)\(\[(.*)\]\)=\w+$", line) # ! 名称带尖号 # 【2023-11-05 01:18:15】目前操作最后还是以`=null`结尾
-                    # 使用isnothing避免「假冒语句」匹配出错
-                    if !isnothing(match_operation) && length(match_operation) > 1
-                        push!(objects, (;
-                            output_type,
-                            content,
-                            output_operation=[
-                                match_operation[1],
-                                # * 基于「括号匹配」的更好拆分
-                                split_between_root_brackets(
-                                    match_operation[2], # 样例：`{SELF}, x`
-                                    # 分隔符
-                                    ", ",
-                                    # 开括弧和闭括弧是默认的
-                                )... # !【2023-11-05 02:06:23】SubString也是成功的
-                            ]
-                        ))
-                    end #
-                # * 默认文本处理
-                else
-                    # 正则匹配取「英文单词」部分，如「IN」
-
-                    # ! 由于先前的正则匹配，所以这个正则匹配必然有值
+                content = line[nextind(line, length(match_type[1]), 3):end] # 截取出统一的「NARS输出类型」 # !【2023-11-26 14:05:28】现在屏蔽掉冒号
+                output_type = typeTranslate_OpenNARS(match_type[1])
+            end
+            # * 操作截取：匹配「EXE: 」开头的行 # 例句：EXE: $1.00;0.99;1.00$ ^right([{SELF}, x])=null
+            if output_type == NARSOutputType.EXE # ! 这里可能是SubString，所以不能使用全等号
+                # 使用正则表达式r"表达式"与「match」字符串方法，并使用括号选定其中返回的第一项
+                # 样例：`^left([{SELF}])`
+                local match_operation = match(r"(\^\w+)\(\[(.*)\]\)=\w+$", line) # ! 名称带尖号 # 【2023-11-05 01:18:15】目前操作最后还是以`=null`结尾
+                # 使用isnothing避免「假冒语句」匹配出错
+                if !isnothing(match_operation) && length(match_operation) > 1
                     push!(objects, (;
                         output_type,
-                        content
-                        # output_operation=[] # ! 无操作⇒无需参数
+                        content,
+                        output_operation=[
+                            match_operation[1],
+                            # * 基于「括号匹配」的更好拆分
+                            split_between_root_brackets(
+                                match_operation[2], # 样例：`{SELF}, x`
+                                # 分隔符
+                                ", ",
+                                # 开括弧和闭括弧是默认的
+                            )... # !【2023-11-05 02:06:23】SubString也是成功的
+                        ]
                     ))
-                end
+                end #
+            else # * 默认文本处理
+                # 正则匹配取「英文单词」部分，如「IN」
+
+                # ! 由于先前的正则匹配，所以这个正则匹配必然有值
+                push!(objects, (;
+                    output_type,
+                    content
+                    # output_operation=[] # ! 无操作⇒无需参数
+                ))
             end
             return objects
         end,
@@ -301,17 +302,27 @@ const NATIVE_CIN_CONFIGS::CINConfigDict = CINConfigDict( # * Julia的「类型�
                     content=line[length("decision expectation")+1:end],
                     # output_operation=[] #! 空数组⇒无操作
                 )) #
-            # * 特殊处理「无回答」
+            #= # 特殊处理「无回答」 # !【2024-01-25 15:45:17】现在统一收集到「OTHER」进行输出
             elseif line == "Answer: None." # ! 这里可能是SubString，所以不能使用全等号
-            # 不产生任何输出
+            # 不产生任何输出 =#
             # * 默认文本处理
             else
                 local head = findfirst(r"^\w+: ", line) # EXE: XXXX # ! 只截取「开头纯英文，末尾为『: 』」的内容
-                isnothing(head) || push!(objects, (
-                    output_type=typeTranslate_ONA(line[head][1:end-2]),
-                    content=line[last(head)+1:end],
-                    # output_operation=[] #! 空数组⇒无操作
-                ))
+                # 无头⇒归入`OTHER`下 # TODO: 提取出专用函数？
+                if isnothing(head)
+                    push!(objects, (
+                        output_type=NARSOutputType.OTHER,
+                        content=line,
+                        # output_operation=[] #! 空数组⇒无操作
+                    ))
+                # 有头
+                else
+                    push!(objects, (
+                        output_type=typeTranslate_ONA(line[head][1:end-2]),
+                        content=line[last(head)+1:end],
+                        # output_operation=[] #! 空数组⇒无操作
+                    ))
+                end
             end
 
             return objects
@@ -374,13 +385,22 @@ const NATIVE_CIN_CONFIGS::CINConfigDict = CINConfigDict( # * Julia的「类型�
                 )) #
             # * 默认文本处理
             else
-                isnothing(match_type) || push!(objects, (
-                    output_type=typeTranslate_NARS_Python(match_type[1]),
-                    content=line[length(match_type)+3:end],
-                    # output_operation=[] #! 空数组⇒无操作
-                ))
+                # 无头⇒归入`OTHER`下 # TODO: 提取出专用函数？
+                if isnothing(match_type)
+                    push!(objects, (
+                        output_type=NARSOutputType.OTHER,
+                        content=line,
+                        # output_operation=[] #! 空数组⇒无操作
+                    ))
+                # 有头
+                else
+                    push!(objects, (
+                        output_type=typeTranslate_NARS_Python(match_type[1]),
+                        content=line[length(match_type)+3:end],
+                        # output_operation=[] #! 空数组⇒无操作
+                    ))
+                end
             end
-            # * fallback：返回空
             return objects
         end,
 
@@ -408,7 +428,7 @@ const NATIVE_CIN_CONFIGS::CINConfigDict = CINConfigDict( # * Julia的「类型�
 
         =#
         output_interpret=(line::String) -> begin
-            @warn "Junars尚未支持「输出转译」: $line"
+            @warn "OpenJunars尚未支持「输出转译」: $line"
             []
         end,
 
@@ -506,11 +526,21 @@ const NATIVE_CIN_CONFIGS::CINConfigDict = CINConfigDict( # * Julia的「类型�
                 # ↓只需匹配字符串中间的部分，直接跳过开头的运算值
                 head_match = match(r"(\w+)\s*:\s*(.*)$", actual_line) # 匹配后样例：RegexMatch(..., 1="OUT", 2="<<(*, x)-->^left>==>B>. %1.000;0.250%")
                 # ! ↓因为匹配字典中的输出与「PyNARS输出类型」高度重合，故直接过滤之
-                isnothing(head_match) || (head_match[1] ∈ keys(translate_dict_PyNARS) && push!(objects, (
-                    output_type=typeTranslate_PyNARS(head_match[1]),
-                    content=head_match[2],
-                    # output_operation=[] #! 空数组⇒无操作
-                )))
+                # 无头⇒归入`OTHER`下 # TODO: 提取出专用函数？
+                if isnothing(head_match)
+                    push!(objects, (
+                        output_type=NARSOutputType.OTHER,
+                        content=line,
+                        # output_operation=[] #! 空数组⇒无操作
+                    ))
+                # 有头
+                elseif head_match[1] ∈ keys(translate_dict_PyNARS)
+                    push!(objects, (
+                        output_type=typeTranslate_PyNARS(head_match[1]),
+                        content=head_match[2],
+                        # output_operation=[] #! 空数组⇒无操作
+                    ))
+                end
             end
             # * fallback：返回空
             return objects

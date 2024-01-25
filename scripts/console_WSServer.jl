@@ -111,18 +111,19 @@ end)
 用于高亮「输出颜色」的字典
 """
 const output_color_dict = Dict([
-    NARSOutputType.IN => :white
-    NARSOutputType.OUT => :white
+    NARSOutputType.IN => :light_white
+    NARSOutputType.OUT => :light_white
     NARSOutputType.EXE => :light_cyan
-    NARSOutputType.ANTICIPATE => :yellow
+    NARSOutputType.ANTICIPATE => :light_yellow
     NARSOutputType.ANSWER => :light_green
     NARSOutputType.ACHIEVED => :light_green
-    NARSOutputType.INFO => :light_black
-    NARSOutputType.COMMENT => :light_black
+    NARSOutputType.INFO => :white
+    NARSOutputType.COMMENT => :white
     NARSOutputType.ERROR => :light_red
+    NARSOutputType.OTHER => :light_black # * 未识别的信息
     # ! ↓这俩是OpenNARS附加的
     "CONFIRM" => :light_blue
-    "DISAPPOINT" => :magenta
+    "DISAPPOINT" => :light_magenta
 ])
 
 """

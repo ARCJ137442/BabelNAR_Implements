@@ -1,7 +1,7 @@
 name = "BabelNAR_Implements"
 uuid = "28c5d3c6-c8be-47e2-a215-fc9784cf8bbd"
 authors = ["ARCJ137442 <61109168+ARCJ137442@users.noreply.github.com>"]
-version = "0.1.2"
+version = "0.2.0"
 
 [deps]
 BabelNAR = "b7421120-50f0-43fc-8b2b-7721c3d5cbfc"
