@@ -5,9 +5,10 @@
 
 目前接口中可用的CIN类型
 - OpenNARS(Java)
-- ONA(C/C++)
-- Python(Python)
-- Junars(Julia)【WIP】
+- ONA(C)
+- NARS-Python(Python)
+- OpenJunars(Julia)
+- PyNARS(Python)
 - 【未来还可更多】
 """
 module BabelNAR_Implements
