@@ -9,4 +9,4 @@
 *.local.*
 
 # 本地配置
-Manifest.toml
+# Manifest.toml # ! 因其中依赖未注册，故仍需`Manifest.toml`引导地址

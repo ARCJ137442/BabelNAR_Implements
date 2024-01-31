@@ -1,5 +1,8 @@
-push!(LOAD_PATH, dirname(@__DIR__)) # 用于从cmd打开
-push!(LOAD_PATH, @__DIR__) # 用于从VSCode打开
+ROOT_PATH = contains(@__DIR__, "scripts") ? dirname(@__DIR__) : @__DIR__
+@assert ispath(joinpath(ROOT_PATH), "scripts") # 确保是项目根目录
+push!(LOAD_PATH, ROOT_PATH) # 当前项目根目录
+push!(LOAD_PATH, dirname(ROOT_PATH)) # 更上层根目录
+push!(LOAD_PATH, joinpath(dirname(ROOT_PATH), "BabelNAR.jl")) # BabelNAR包目录
 
 not_VSCode_running::Bool = "test" ⊆ pwd()
 
