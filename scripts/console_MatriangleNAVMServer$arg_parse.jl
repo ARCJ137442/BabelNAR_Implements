@@ -10,8 +10,11 @@ let # 使用`let`保证临时上下文
         # * 追加新参数
         @add_arg_table! settings begin
             "--debug", "-d"
-            help = "是否启用debug模式"
+            help = "启用debug模式"
             action = :store_true # 参考: https://carlobaldassi.github.io/ArgParse.jl/stable/arg_table/#Available-actions-and-nargs-values
+            "--no-debug", "-n"
+            help = "禁用debug模式（优先级高于`debug`）"
+            action = :store_true # * `:store_false`亦合法，效果与`:store_true`相反
         end
 
         return settings

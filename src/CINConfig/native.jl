@@ -21,14 +21,14 @@ export type WebNARSOutput = {
 
 # 使用NAVM包 # ! 下面的符号截止至【2024-01-22 17:54:19】
 using NAVM: Backend, BackendModule, Frontend, FrontendModule
-using NAVM.NAIR: NarseseObject, NAIR_CMD, 
-                 CMD_SAV, CMD_LOA, CMD_RES, 
-                 CMD_NSE, 
-                 CMD_NEW, CMD_DEL, 
-                 CMD_CYC, CMD_VOL, CMD_INF, CMD_REG,
-                 CMD_HLP, CMD_REM
+using NAVM.NAIR: NarseseObject, NAIR_CMD,
+    CMD_SAV, CMD_LOA, CMD_RES,
+    CMD_NSE,
+    CMD_NEW, CMD_DEL,
+    CMD_CYC, CMD_VOL, CMD_INF, CMD_REG,
+    CMD_HLP, CMD_REM
 using NAVM: NAIR, NAIR_FOLDS, NAIR_GRAMMAR, NAIR_INSTRUCTION_SET, NAIR_RULES, NAVM, NAVM_Module
-using NAVM: chain, #= try_form_cmd,  =#form_cmd, parse_cmd, tryparse_cmd, source_type, target_type, transform, try_transform
+using NAVM: chain, form_cmd, parse_cmd, tryparse_cmd, source_type, target_type, transform, try_transform #= ,try_form_cmd  =#
 @debug names(NAVM)
 
 # 使用NAVM包的实现 # ! 下面的符号截止至【2023-11-02 22:49:36】
@@ -68,6 +68,7 @@ const translate_dict_OpenNARS = Dict([
     "EXE" => NARSOutputType.EXE,
     "ANTICIPATE" => NARSOutputType.ANTICIPATE,
     "Answer" => NARSOutputType.ANSWER, # * OpenNARS中的「Answer」是小写的
+    "ERR" => NARSOutputType.ERROR,
     # ! OpenNARS特有
     "CONFIRM" => "CONFIRM",
     "DISAPPOINT" => "DISAPPOINT",
@@ -302,11 +303,14 @@ const NATIVE_CIN_CONFIGS::CINConfigDict = CINConfigDict( # * Julia的「类型�
                     content=line[length("decision expectation")+1:end],
                     # output_operation=[] #! 空数组⇒无操作
                 )) #
-            #= # 特殊处理「无回答」 # !【2024-01-25 15:45:17】现在统一收集到「OTHER」进行输出
-            elseif line == "Answer: None." # ! 这里可能是SubString，所以不能使用全等号
-            # 不产生任何输出 =#
-            # * 默认文本处理
-            else
+            # 特殊处理「无回答」 # !【2024-02-01 21:57:21】宁愿到OTHER，也不要到ANSWER：ANSWER必须输出「真正有所答案」的回答
+            elseif startswith(line, "Answer: None") # ! 这里可能是SubString，所以不能使用全等号
+                # 归入「OTHER」
+                push!(objects, (
+                    output_type=NARSOutputType.OTHER,
+                    content=line,
+                ))
+            else # * 默认文本处理
                 local head = findfirst(r"^\w+: ", line) # EXE: XXXX # ! 只截取「开头纯英文，末尾为『: 』」的内容
                 # 无头⇒归入`OTHER`下 # TODO: 提取出专用函数？
                 if isnothing(head)
@@ -315,7 +319,7 @@ const NATIVE_CIN_CONFIGS::CINConfigDict = CINConfigDict( # * Julia的「类型�
                         content=line,
                         # output_operation=[] #! 空数组⇒无操作
                     ))
-                # 有头
+                    # 有头
                 else
                     push!(objects, (
                         output_type=typeTranslate_ONA(line[head][1:end-2]),
@@ -392,7 +396,7 @@ const NATIVE_CIN_CONFIGS::CINConfigDict = CINConfigDict( # * Julia的「类型�
                         content=line,
                         # output_operation=[] #! 空数组⇒无操作
                     ))
-                # 有头
+                    # 有头
                 else
                     push!(objects, (
                         output_type=typeTranslate_NARS_Python(match_type[1]),
@@ -493,7 +497,7 @@ const NATIVE_CIN_CONFIGS::CINConfigDict = CINConfigDict( # * Julia的「类型�
                     output_type=NARSOutputType.INFO,
                     content=head_match[1],
                     # output_operation=[]
-                    ))#
+                ))#
             # * 操作截取：匹配"EXE"开头的行 样例：`EXE   :<(*, x)-->^left> = $0.016;0.225;0.562$ <(*, x)-->^left>! %1.000;0.125% {None: 3, 1, 2}`
             elseif startswith(actual_line, "EXE")
                 # ! 匹配原理：忽略冒号两侧的空白符，捕获「 = $」前、模式为「<(*, 【操作参数】)-->【操作符】>」的字符串
@@ -533,7 +537,7 @@ const NATIVE_CIN_CONFIGS::CINConfigDict = CINConfigDict( # * Julia的「类型�
                         content=line,
                         # output_operation=[] #! 空数组⇒无操作
                     ))
-                # 有头
+                    # 有头
                 elseif head_match[1] ∈ keys(translate_dict_PyNARS)
                     push!(objects, (
                         output_type=typeTranslate_PyNARS(head_match[1]),

@@ -20,8 +20,10 @@ function main_launch(consoleWS; arg_dict::ArgDict)
 
     # 决定「是否输出详细信息」
     if (
-        arg_dict["debug"] ||
-        !isempty(input("Debug mode (false)："))
+        !arg_dict["no-debug"] && ( # "no-debug" 优先
+            arg_dict["debug"] ||
+            !isempty(input("Debug mode (false)："))
+        )
     )
         ENV["JULIA_DEBUG"] = "all"
         # * 启用DEBUG模式
