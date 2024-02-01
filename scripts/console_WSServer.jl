@@ -138,7 +138,7 @@ end
 ) # ! 默认为恒等函数，后续用于NAVM转译
 
 "覆盖：生成「带Websocket服务器」的NARS终端"
-function main_console(type::CINType, path::String, CIN_configs; arg_dict::ArgDict)::NARSConsoleWithServer
+function main_console(name::CINName, type::CINType, path::String, CIN_configs; arg_dict::ArgDict)::NARSConsoleWithServer
     # 先定义一个临时函数，将其引用添加进服务器定义——然后添加「正式使用」的方法
     _temp_input_interpreter(x::Nothing) = x
 
@@ -148,7 +148,7 @@ function main_console(type::CINType, path::String, CIN_configs; arg_dict::ArgDic
             type,
             CIN_configs[type],
             path;
-            input_prompt="BabelNAR.$type> ",
+            input_prompt="BabelNAR.$name> ",
             input_interpreter=_temp_input_interpreter # ! 与「来源网络」的一致
         );
         # 然后配置可选参数 #

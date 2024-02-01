@@ -221,11 +221,11 @@ end
 end
 
 # * 生成NARS终端
-@soft_def main_console(type::CINType, path::String, CIN_configs; arg_dict::ArgDict) = NARSConsole(
+@soft_def main_console(name::CINName, type::CINType, path::String, CIN_configs; arg_dict::ArgDict) = NARSConsole(
     type,
     CIN_configs[type],
     path;
-    input_prompt="BabelNAR.$type> ",
+    input_prompt="BabelNAR.$name> ",
     on_out=(line::String) -> begin
         local outputs = main_output_interpret(
             Val(Symbol(type)),
@@ -274,7 +274,7 @@ function main(ARGS::Vector{String}=[])
     local path::String = main_CIN_path(name)
 
     # 生成NARS终端 | 不再负责获取类型、可执行文件路径
-    local console = main_console(type, path, NATIVE_CIN_CONFIGS; arg_dict) # ! 类型无需固定
+    local console = main_console(name, type, path, NATIVE_CIN_CONFIGS; arg_dict) # ! 类型无需固定
 
     # 启动NARS终端
     not_VSCode_running && @debug console # VSCode（CodeRunner）运行⇒打印
