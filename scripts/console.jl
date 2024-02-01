@@ -213,7 +213,7 @@ end
     global not_VSCode_running
 
     # * 命令行参数中已指定⇒使用命令行参数值做匹配
-    isnothing(arg_dict["type"]) || return @show match_CIN_name(arg_dict["type"], CIN_paths)
+    isnothing(arg_dict["type"]) || return match_CIN_name(arg_dict["type"], CIN_paths)
 
     # * 在VSCode中运行⇒返回默认值
     not_VSCode_running || return default_name
