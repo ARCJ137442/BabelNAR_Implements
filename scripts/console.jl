@@ -211,7 +211,7 @@ end
     not_VSCode_running || return default_name
 
     # * 命令行参数中已指定⇒使用命令行参数值做匹配
-    haskey(arg_dict, "type") && return match_CIN_name(arg_dict["type"], CIN_paths)
+    isnothing(arg_dict["type"]) || return match_CIN_name(arg_dict["type"], CIN_paths)
 
     # * 默认情况：请求输入
     return get_valid_NARS_name_from_input(
