@@ -1,5 +1,5 @@
 # 预先条件引入 # ! 不引入会导致无法使用符号
-@isdefined(BabelNAR_Implements) || include(raw"console$import.jl")
+@isdefined(BabelNAR_Implements) || include(raw"console$common.jl")
 
 # 引入其它配置 #
 include(raw"console_NAVM$config.jl")

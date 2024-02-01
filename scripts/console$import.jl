@@ -11,7 +11,7 @@ using BabelNAR_Implements
 @debug names(BabelNAR_Implements)
 using BabelNAR_Implements.BabelNAR # * ←这里就是「直接导入的包」
 @debug names(BabelNAR)
-using BabelNAR_Implements.Utils: input, _INTERNAL_MODULE_SEARCH_DICT # ! ←这个用于注入Junars
+import BabelNAR.Utils: input, _INTERNAL_MODULE_SEARCH_DICT # ! ←这个用于注入Junars
 
 # 引入OpenJunars # ! 但这是本地目录，所以在别的地方需要稍加修改
 try

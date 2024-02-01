@@ -18,7 +18,7 @@
 =#
 
 # 条件引入
-@isdefined(BabelNAR_Implements) || include(raw"console$import.jl")
+@isdefined(BabelNAR_Implements) || include(raw"console$common.jl")
 
 """
 用于获取用户输入的「NARS类型」
@@ -70,7 +70,7 @@ begin # * 可执行文件路径
             # 惰性递归求值（只有在传递参数的时候，才真正开始求函数）
             : name -> join_root(n-1, bases...; root=dirname(root))(name)
     )
-    
+
     Dict([
         TYPE_OPENNARS => "opennars.jar" |> join_root(2, "executables")
         TYPE_ONA => "NAR.exe" |> join_root(3, "NAR", "OpenNARS-for-Applications")
@@ -82,8 +82,69 @@ begin # * 可执行文件路径
     paths::Dict = include("CIN-paths.local.jl")
 end
 
+# * CIN输出相关 * #
+
+# * 转译CIN输出，生成「具名元组」数据（后续编码成JSON，用于输出）
+@isdefined(main_output_interpret) || (main_output_interpret(::Val{nars_type}, CIN_config::CINConfig, line::String) where {nars_type} = begin
+    local objects::Vector{NamedTuple} = NamedTuple[]
+
+    local head = findfirst(r"^\w+:", line) # EXE: XXXX # ! 只截取「开头纯英文，末尾为『:』」的内容
+
+    isnothing(head) || begin
+        push!(objects, (
+            interface_name="BabelNAR@$(nars_type)",
+            output_type=line[head][begin:end-1],
+            content=line[last(head)+1:end]
+        ))
+    end
+
+    return objects
+end)
+
+"""
+用于高亮「输出颜色」的字典
+"""
+const output_color_dict = Dict([
+    NARSOutputType.IN => :light_white
+    NARSOutputType.OUT => :light_white
+    NARSOutputType.EXE => :light_cyan
+    NARSOutputType.ANTICIPATE => :light_yellow
+    NARSOutputType.ANSWER => :light_green
+    NARSOutputType.ACHIEVED => :light_green
+    NARSOutputType.INFO => :white
+    NARSOutputType.COMMENT => :white
+    NARSOutputType.ERROR => :light_red
+    NARSOutputType.OTHER => :light_black # * 未识别的信息
+    # ! ↓这俩是OpenNARS附加的
+    "CONFIRM" => :light_blue
+    "DISAPPOINT" => :light_magenta
+])
+
+"""
+用于分派「颜色反转」的集合
+"""
+const output_reverse_color_dict = Set([
+    NARSOutputType.EXE
+    # NARSOutputType.ANSWER
+    # NARSOutputType.ACHIEVED
+])
+
+"""
+根据JSON输出打印信息
+- 要求output具有`output_type`、`content`两个字段
+"""
+function print_NARSOutput(output)
+    printstyled(
+        "[$(output.output_type)] $(output.content)\n";
+        # 样式
+        color=get(output_color_dict, output.output_type, :default),
+        reverse=output.output_type in output_reverse_color_dict,
+        bold=true, # 所有都加粗，以便和「程序自身输出」对比
+    )
+end
 
 # * 主函数 * #
+
 # * 获取NARS类型
 @isdefined(main_type) || (main_type(default_type::CINType)::CINType = begin
     global not_VSCode_running
@@ -96,8 +157,10 @@ end
     ) :
     TYPE_OPENNARS
 end)
+
 # * 根据类型获取可执行文件路径
 @isdefined(main_path) || (main_path(type::CINType)::String = paths[type])
+
 # * 生成NARS终端
 @isdefined(main_console) || (main_console(type::CINType, path, CIN_configs) = NARSConsole(
     type,
@@ -105,6 +168,7 @@ end)
     path;
     input_prompt="BabelNAR.$type> "
 ))
+
 # * 启动
 @isdefined(main_launch) || (main_launch(console) = launch!(
     console,
@@ -115,6 +179,7 @@ end)
     # *【2024-01-22 23:19:51】使用0.1s的延迟，让CIN先将自身文本输出完，再打印提示词✅
     delay_between_input=0.1
 ))
+
 # * 主函数
 @isdefined(main) || function main()
 

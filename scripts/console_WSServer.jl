@@ -4,39 +4,68 @@
 =#
 
 # 预先条件引入 # ! 不引入会导致无法使用符号
-@isdefined(BabelNAR_Implements) || include(raw"console$import.jl")
+@isdefined(BabelNAR_Implements) || include(raw"console$common.jl")
+
+"（统一的）消息接收钩子"
+function on_message(consoleWS, connection, message)
+    "转换后的字符串" # ! 可能「一输入多输出」
+    local inputs::Vector{String} = main_received_convert(consoleWS, message)
+    # 处理：通过「转译函数」后放入CIN，视作为「CIN自身的输入」 # ! 只有非空字符串才会输入进CIN
+    isempty(inputs) || for input in inputs
+        put!(consoleWS.console.program, input)
+    end
+end
+
+"（统一的）连接关闭钩子"
+function on_close(consoleWS, connection, reason)
+    # 获取退出码以及描述
+    code, description = reason
+    if code == 1000
+        @info "Websocket连接正常关闭✓"
+    elseif contains(description, " ping ")
+        @warn "连接疑似掉线：$(description)（退出码：$(code)）"
+    else
+        @warn "Websocket连接异常关闭！退出码：$code" description
+    end
+    # 通知条件（以便让程序执行完）
+    # notify(consoleWS.ended) # ! 暂时不使用
+end
+
+"（统一的）连接错误钩子"
+function on_error(consoleWS, connection, err)
+    # 通知条件（以便让程序执行完）
+    # notify(ended, err, error=true)
+end
 
 "启动Websocket服务器"
 function launchWSServer(consoleWS::NARSConsoleWithServer, host::String, port::Int)
 
+    # 检查「Websocket服务器」是否已初始化
     @assert !isnothing(consoleWS.server)
-    local ended = Condition()
+    # local ended = Condition()
 
-    listen(consoleWS.server, :client) do ws
+    # 预备侦听
+    listen(consoleWS.server, :client) do connection
 
         # Julia自带侦听提示
-        @info "Websocket connection established."
-        @debug "ws=$ws"
-        push!(consoleWS.connections, ws)
+        @info "Websocket连接已建立。"
+        @debug "" connection
+        push!(consoleWS.connections, connection)
 
-        listen(ws, :message) do message
-            "转换后的字符串" # ! 可能「一输入多输出」
-            local inputs::Vector{String} = main_received_convert(consoleWS, message)
-            # 处理：通过「转译函数」后放入CIN，视作为「CIN自身的输入」 # ! 只有非空字符串才会输入进CIN
-            isempty(inputs) || for input in inputs
-                put!(consoleWS.console.program, input)
-            end
+        listen(connection, :message) do message
+            on_message(consoleWS, connection, message)
         end
 
-        listen(ws, :close) do reason
-            @warn "Websocket connection closed" reason...
-            notify(ended)
+        listen(connection, :close) do reason
+            on_close(consoleWS, connection, reason)
+            # notify(ended)
         end
 
     end
 
+    # 错误通知
     listen(consoleWS.server, :connectError) do err
-        notify(ended, err, error=true)
+        on_error(consoleWS, connection, err)
     end
 
     # @show server
@@ -69,13 +98,13 @@ end
     # 获取默认值
 
     if isnothing(host)
-        hostI = input("Host ($default_host): ")
+        local hostI = input("Host ($default_host): ")
         host = !isempty(hostI) ? hostI : default_host
     end
 
     if isnothing(port)
-        port = tryparse(Int, input("Port ($default_port): "))
-        port = isnothing(port) ? default_port : port
+        local portI = tryparse(Int, input("Port ($default_port): "))
+        port = something(portI, default_port)
     end
 
     # 返回
@@ -89,51 +118,6 @@ end
 @isdefined(main_received_convert) || (main_received_convert(::NARSConsoleWithServer, message::String) = (
     message
 )) # ! 默认为恒等函数，后续用于NAVM转译
-
-# * 转译CIN的命令输出，生成「具名元组」数据（后续编码成JSON，用于WebSocket传输）
-@isdefined(main_output_interpret) || (main_output_interpret(::Val{nars_type}, CIN_config::CINConfig, line::String) where {nars_type} = begin
-    objects::Vector{NamedTuple} = NamedTuple[]
-
-    head = findfirst(r"^\w+:", line) # EXE: XXXX # ! 只截取「开头纯英文，末尾为『:』」的内容
-
-    isnothing(head) || begin
-        push!(objects, (
-            interface_name="BabelNAR@$(nars_type)",
-            output_type=line[head][begin:end-1],
-            content=line[last(head)+1:end]
-        ))
-    end
-
-    return objects
-end)
-
-"""
-用于高亮「输出颜色」的字典
-"""
-const output_color_dict = Dict([
-    NARSOutputType.IN => :light_white
-    NARSOutputType.OUT => :light_white
-    NARSOutputType.EXE => :light_cyan
-    NARSOutputType.ANTICIPATE => :light_yellow
-    NARSOutputType.ANSWER => :light_green
-    NARSOutputType.ACHIEVED => :light_green
-    NARSOutputType.INFO => :white
-    NARSOutputType.COMMENT => :white
-    NARSOutputType.ERROR => :light_red
-    NARSOutputType.OTHER => :light_black # * 未识别的信息
-    # ! ↓这俩是OpenNARS附加的
-    "CONFIRM" => :light_blue
-    "DISAPPOINT" => :light_magenta
-])
-
-"""
-用于分派「颜色反转」的集合
-"""
-const output_reverse_color_dict = Set([
-    NARSOutputType.EXE
-    # NARSOutputType.ANSWER
-    # NARSOutputType.ACHIEVED
-])
 
 "覆盖：生成「带Websocket服务器」的NARS终端"
 function main_console(type::CINType, path, CIN_configs)::NARSConsoleWithServer
@@ -157,26 +141,13 @@ function main_console(type::CINType, path, CIN_configs)::NARSConsoleWithServer
         # 启动服务器
         server_launcher=launchWSServer,
         # 转译输出
-        output_interpreter=(line::String) -> main_output_interpret(Val(Symbol(type)), CIN_configs[type], line)
-        #= # !【2023-11-26 14:03:23】下面这段注释原先用于「统一的CIN输出」，但因「程序自身输出无法拦截屏蔽」而作罢
-        begin
-            local outputs::Vector{NamedTuple} = main_output_interpret(Val(Symbol(type)), CIN_configs[type], line)
-            for output in outputs
-                println("[$(output.output_type)] $(output.content)")
-            end
-            return outputs
-        end =#,
-        # 发送数据
+        output_interpreter=(line::String) -> main_output_interpret(Val(Symbol(type)), CIN_configs[type], line),
+        # 发送数据 to 客户端
         server_send=(consoleWS::NARSConsoleWithServer, datas::Vector{NamedTuple}) -> begin
             # 只用封装一次JSON
             local text::String = json(datas)
-            for data in datas
-                printstyled(
-                    "[$(data.output_type)] $(data.content)\n";
-                    color=get(output_color_dict, data.output_type, :default),
-                    reverse=data.output_type in output_reverse_color_dict,
-                    bold=true # 所有都加粗，以便和「程序自身输出」对比
-                    )
+            for output in datas
+                print_NARSOutput(output)
             end
             # * 遍历所有连接，广播之
             for connection in consoleWS.connections
