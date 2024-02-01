@@ -1,5 +1,14 @@
 include(raw"console$import.jl")
 
+"统一的「CIN路径配置」类型"
+const CINPaths = Dict{String,Pair{CINType,String}}
+
+"统一的「CIN配置名称」类型"
+const CINName = String
+
+"统一的「命令行参数字典」类型"
+const ArgDict = Dict{String,Any}
+
 # * 扩展的实用函数库 * #
 
 "从表达式中获取形如「f(x) = 2x」的定义名称`:f`（兼容普通赋值、函数`function`的定义方式）"
@@ -86,3 +95,21 @@ end
 input("num? (123): ", Int, 123)
 input("type? (nothing): ", Symbol, nothing)
 input("type? (nothing): ", Symbol, nothing) =#
+
+"复刻[something](@ref)、[coalesce](@ref)函数，返回非空的第一个值"
+function nonempty end
+
+nonempty() = throw(ArgumentError("No value arguments present"))
+nonempty(x) = x
+nonempty(x, default) = isempty(x) ? default : x
+nonempty(x, args...) = isempty(x) ? nonempty(args...) : x
+
+"复刻惰性求值的[@something](@ref)宏"
+macro nonempty(args...)
+    expr = ""
+    for arg in reverse(args)
+        expr = :(val = $(esc(arg)); isempty(val) ? ($expr) : val)
+    end
+    nonempty = GlobalRef(Main, :nonempty)
+    return :($nonempty($expr))
+end

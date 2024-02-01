@@ -4,7 +4,11 @@
 =#
 
 # 预先条件引入 # ! 不引入会导致无法使用符号
-@defined_or BabelNAR_Implements include(raw"console$common.jl")
+@isdefined(BabelNAR_Implements) || include(raw"console$common.jl")
+
+# * 默认常量
+const DEFAULT_HOST = "127.0.0.1"
+const DEFAULT_PORT = 8765 # * 从PyNARS中继承过来
 
 "（统一的）消息接收钩子"
 function on_message(consoleWS, connection, message)
@@ -88,24 +92,38 @@ catch err
     @warn "BabelNAR: 包「JSON」未能成功导入，WebSocket服务将无法使用！" err
 end
 
+# * 覆盖@解析命令行参数：有关主机地址、端口的配置
+@soft_def arg_parse_settings = include(raw"console_WSServer$arg_parse.jl")
+
 # * 配置服务器地址信息
 @soft_def function main_address(
     host::Union{AbstractString,Nothing}=nothing,
     port::Union{Int,Nothing}=nothing;
-    default_host::String="127.0.0.1",
-    default_port::Int=8765
+    default_host::String=DEFAULT_HOST,
+    default_port::Int=DEFAULT_PORT,
+    arg_dict::ArgDict
 )::NamedTuple{(:host, :port),Tuple{String,Int}}
     # 获取默认值
 
-    if isnothing(host)
-        local hostI = input("Host ($default_host): ")
-        host = !isempty(hostI) ? hostI : default_host
-    end
+    host = @something(
+        arg_dict["host"], # 优先从命令行参数中获取
+        host, # 其次是函数参数
+        # 最后再考虑输入&默认值
+        @nonempty(
+            input("Host ($default_host): "),
+            default_host
+        )
+    )
 
-    if isnothing(port)
-        local portI = tryparse(Int, input("Port ($default_port): "))
-        port = something(portI, default_port)
-    end
+    port = @something(
+        arg_dict["port"], # 优先从命令行参数中获取
+        port, # 其次是函数参数
+        # 最后再考虑输入&默认值
+        @something(
+            tryparse(Int, input("Port ($default_port): ")),
+            default_port
+        )
+    )
 
     # 返回
     return (
@@ -120,7 +138,7 @@ end
 ) # ! 默认为恒等函数，后续用于NAVM转译
 
 "覆盖：生成「带Websocket服务器」的NARS终端"
-function main_console(type::CINType, path::String, CIN_configs)::NARSConsoleWithServer
+function main_console(type::CINType, path::String, CIN_configs; arg_dict::ArgDict)::NARSConsoleWithServer
     # 先定义一个临时函数，将其引用添加进服务器定义——然后添加「正式使用」的方法
     _temp_input_interpreter(x::Nothing) = x
 
@@ -164,13 +182,13 @@ function main_console(type::CINType, path::String, CIN_configs)::NARSConsoleWith
     return server
 end
 
-
-"覆盖：可选启动服务器"
-main_launch(consoleWS) = launch!(
+# * 覆盖：可选启动服务器
+@soft_def main_launch(consoleWS; arg_dict::ArgDict) = launch!(
     consoleWS;
-    main_address()...,
+    main_address(; arg_dict)...,
     # *【2024-01-22 23:19:51】使用0.1s的延迟，让CIN先将自身文本输出完，再打印提示词✅
-    delay_between_input=0.1
+    delay_between_input=0.1,
+    arg_dict
 )
 
 # 最终引入

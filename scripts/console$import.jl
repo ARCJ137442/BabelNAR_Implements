@@ -32,3 +32,10 @@ end
 if BabelNAR_Implements.BabelNAR !== BabelNAR
     error("报警：俩包不一致！")
 end
+
+# * 尝试导入「命令行参数解析」相关库
+try
+    using ArgParse
+catch
+    @warn "ArgParse.jl 未成功导入，无法解析命令行参数。"
+end

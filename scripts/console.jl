@@ -20,9 +20,6 @@
 # 条件引入
 @isdefined(BabelNAR_Implements) || include(raw"console$common.jl")
 
-"统一的「CIN路径配置」类型"
-const CINPaths = Dict{String,Pair{CINType,String}}
-
 # * 获取可执行文件路径配置
 CIN_PATHS::CINPaths = let
     dict::Dict = include("CIN-paths.local.jl")
@@ -64,10 +61,35 @@ for (name, (mode, path)) in CIN_PATHS
 end
 
 "根据类型获取可执行文件路径 | 字典结构：`名称 => (CIN类型 => 路径)`"
-main_CIN_path(name::String)::String = last(CIN_PATHS[name])
+main_CIN_path(name::String)::CINName = last(CIN_PATHS[name])
 
 "根据类型获取可执行文件路径 | 字典结构：`名称 => (CIN类型 => 路径)`"
 main_CIN_type(name::String)::CINType = first(CIN_PATHS[name])
+
+"""
+用于从各种不完整输入中灵活锁定CIN名称
+"""
+function match_CIN_name(name_to_index::AbstractString, CIN_paths::CINPaths)::Union{String,Nothing}
+
+    "用于对比的字符串" # ! 全部转换成小写字母（忽略大小写）
+    local name_str_comp = lowercase(name_to_index)
+    "用于对比的配置键"
+    local type2_comp::CINName
+
+    # * 合法⇒返回 | 优先级：相等⇒前缀⇒后缀⇒被包含⇒包含（原有，输入）
+    for condition_f in [isequal, startswith, endswith, occursin, contains]
+        # * 层层条件过滤
+        for type2::CINName in keys(CIN_paths)
+
+            type2_str_comp = lowercase(type2)
+            # 最后返回的还是「名称」而非「对比用的字符串」
+            condition_f(type2_str_comp, name_str_comp) && return type2
+        end
+    end
+
+    # 默认返回空
+    return nothing
+end
 
 """
 用于获取用户输入的「NARS类型」
@@ -79,31 +101,21 @@ main_CIN_type(name::String)::CINType = first(CIN_PATHS[name])
 """
 function get_valid_NARS_name_from_input(
     CIN_paths::CINPaths;
-    default_name::String,
+    default_name::CINName,
     input_prompt::String="NARS Type [$(join(keys(CIN_paths), '|'))] ($default_name): "
-)::String
+)::CINName
 
-    local inp::String, type::CINType
+    "与输入匹配的字符串 | 可能为空"
+    local name_matched::Union{CINName,Nothing}
 
     while true
-        "输入的字符串 默认值为`default_name`"
-        local name_str_index = input(input_prompt, default_name)
+        name_matched = match_CIN_name(
+            input(input_prompt, default_name),
+            CIN_paths
+        )
 
-        "用于对比的字符串" # ! 全部转换成小写字母（忽略大小写）
-        local name_str_comp = lowercase(name_str_index)
-        "用于对比的配置键"
-        local type2_comp::String
-
-        # * 合法⇒返回 | 优先级：相等⇒前缀⇒后缀⇒被包含⇒包含（原有，输入）
-        for condition_f in [isequal, startswith, endswith, occursin, contains]
-            # * 层层条件过滤
-            for type2::String in keys(CIN_paths)
-
-                type2_str_comp = lowercase(type2)
-                # 最后返回的还是「名称」而非「对比用的字符串」
-                condition_f(type2_str_comp, name_str_comp) && return type2
-            end
-        end
+        # * 非空⇒返回
+        isnothing(name_matched) || return name_matched
 
         # * 非法⇒警告⇒重试
         printstyled("Invalid Type $(name_str_index)!\n"; color=:red)
@@ -166,34 +178,50 @@ const output_reverse_color_dict = Set([
 根据JSON输出打印信息
 - 要求output具有`output_type`、`content`两个字段
 """
-function print_NARSOutput(output)
-    printstyled(
-        "[$(output.output_type)] $(output.content)\n";
-        # 样式
-        color=get(output_color_dict, output.output_type, :default),
-        reverse=output.output_type in output_reverse_color_dict,
-        bold=true, # 所有都加粗，以便和「程序自身输出」对比
-    )
-end
+print_NARSOutput(output) = printstyled(
+    "[$(output.output_type)] $(output.content)\n";
+    # 样式
+    color=get(output_color_dict, output.output_type, :default),
+    reverse=output.output_type in output_reverse_color_dict,
+    bold=true, # 所有都加粗，以便和「程序自身输出」对比
+)
 
 # * 主函数 * #
 
+# * 基于 ArgParse.jl 的参数解析表 | 从外部引入一个匿名函数
+@soft_def arg_parse_settings = include(raw"console$arg_parse.jl")
+
+# * 解析命令行参数
+@soft_def function cmdline_args_dict(ARGS)::ArgDict
+
+    @isdefined(ArgParse) || return ArgDict()
+
+    return parse_args(ARGS, arg_parse_settings())
+end
+
 # * 获取NARS类型
-@soft_def function main_CIN_name(default_name::String)::String
+@soft_def function main_CIN_name(default_name::CINName, CIN_paths::CINPaths; arg_dict::ArgDict)::CINName
+
     global not_VSCode_running
 
-    @defined_or FORCED_TYPE (
-        not_VSCode_running
-        ? get_valid_NARS_name_from_input(
-            CIN_PATHS;
-            default_name
-        )
-        : String(TYPE_OPENNARS)
+    # * 已强制指定⇒返回强制指定的值
+    @isdefined(FORCED_TYPE) && return FORCED_TYPE
+
+    # * 在VSCode中运行⇒返回默认值
+    not_VSCode_running || return default_name
+
+    # * 命令行参数中已指定⇒使用命令行参数值做匹配
+    haskey(arg_dict, "type") && return match_CIN_name(arg_dict["type"], CIN_paths)
+
+    # * 默认情况：请求输入
+    return get_valid_NARS_name_from_input(
+        CIN_paths;
+        default_name
     )
 end
 
 # * 生成NARS终端
-@soft_def main_console(type::CINType, path::String, CIN_configs) = NARSConsole(
+@soft_def main_console(type::CINType, path::String, CIN_configs; arg_dict::ArgDict) = NARSConsole(
     type,
     CIN_configs[type],
     path;
@@ -211,7 +239,7 @@ end
 )
 
 # * 启动！
-@soft_def main_launch(console) = launch!(
+@soft_def main_launch(console; arg_dict::ArgDict) = launch!(
     console,
     ( # 可选的「服务器」
         (@isdefined(IP) && @isdefined(PORT)) ?
@@ -221,15 +249,23 @@ end
     delay_between_input=0.1
 )
 
-# * 主函数
-@soft_def function main()
+"常量「默认类型」"
+const DEFAULT_NAME = string(TYPE_OPENNARS)
+
+"""
+主函数
+"""
+function main(ARGS::Vector{String}=[])
 
     "<================BabelNAR Console================>" |> println
 
     global not_VSCode_running
 
+    # 获取命令行参数
+    local arg_dict = cmdline_args_dict(ARGS)
+
     # 获取NARS名称
-    local name::String = main_CIN_name(string(TYPE_OPENNARS)) # ! 默认为OpenNARS
+    local name::String = main_CIN_name(DEFAULT_NAME, CIN_PATHS; arg_dict) # ! 默认为OpenNARS
 
     # 根据名称获取CIN类型
     local type::CINType = main_CIN_type(name)
@@ -238,14 +274,14 @@ end
     local path::String = main_CIN_path(name)
 
     # 生成NARS终端 | 不再负责获取类型、可执行文件路径
-    local console = main_console(type, path, NATIVE_CIN_CONFIGS) # ! 类型无需固定
+    local console = main_console(type, path, NATIVE_CIN_CONFIGS; arg_dict) # ! 类型无需固定
 
     # 启动NARS终端
     not_VSCode_running && @debug console # VSCode（CodeRunner）运行⇒打印
-    main_launch(console) # 无论如何都会启动 # * 用于应对「在VSCode启动服务器相对不需要用户输入」的情况
+    main_launch(console; arg_dict) # 无论如何都会启动 # * 用于应对「在VSCode启动服务器相对不需要用户输入」的情况
 end
 
 # * 现在可以通过「预先定义main函数」实现可选的「函数替换」
-main()
+main(ARGS)
 
 @info "It is done."

@@ -5,36 +5,35 @@
 include(raw"console_NAVM$config.jl")
 include(raw"console_ServerOutFormat$config.jl")
 
+# * 覆盖@解析命令行参数：有关「是否启用详细输出」的配置
+@soft_def arg_parse_settings = include(raw"console_MatriangleNAVMServer$arg_parse.jl")
+
 # 覆盖配置 #
-
 "覆盖：使用默认地址，但端口可配置（默认8765）"
-function main_address(
-    ::Union{AbstractString,Nothing}=nothing,
-    port::Union{Int,Nothing}=nothing;
-    default_host::String="127.0.0.1",
-    default_port::Int=8765
-)::NamedTuple{(:host, :port),Tuple{String,Int}}
+function main_launch(consoleWS; arg_dict::ArgDict)
 
-    # 获取默认值
-    host = default_host
-    @info "主机地址：$host"
-
-    if isnothing(port)
-        port = tryparse(Int, input("Port ($default_port): "))
-        port = isnothing(port) ? default_port : port
-    end
+    # 先获取地址 | 包括输入
+    local addresses = main_address(
+        DEFAULT_HOST; # ! 使用默认主机地址
+        arg_dict
+    )
 
     # 决定「是否输出详细信息」
-    if !isempty(input("Detailed output (false)："))
-        # * 启用DEBUG模式
-        @debug "启用DEBUG模式！"
+    if (
+        arg_dict["debug"] ||
+        !isempty(input("Debug mode (false)："))
+    )
         ENV["JULIA_DEBUG"] = "all"
+        # * 启用DEBUG模式
+        @debug "DEBUG模式已启用！"
     end
 
-    # 返回
-    return (
-        host=host,
-        port=port
+    # 启动
+    launch!(
+        consoleWS;
+        addresses...,
+        # *【2024-01-22 23:19:51】使用0.1s的延迟，让CIN先将自身文本输出完，再打印提示词✅
+        delay_between_input=0.1
     )
 end
 
