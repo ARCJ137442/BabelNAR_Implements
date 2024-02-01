@@ -10,6 +10,7 @@ not_VSCode_running::Bool = "test" ⊆ pwd()
 using BabelNAR_Implements
 @debug names(BabelNAR_Implements)
 using BabelNAR_Implements.BabelNAR # * ←这里就是「直接导入的包」
+import BabelNAR_Implements.BabelNAR: CINConfigDict
 @debug names(BabelNAR)
 import BabelNAR.Utils: input, _INTERNAL_MODULE_SEARCH_DICT # ! ←这个用于注入Junars
 

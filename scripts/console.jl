@@ -20,6 +20,14 @@
 # 条件引入
 @isdefined(BabelNAR_Implements) || include(raw"console$common.jl")
 
+# * 所有CIN配置：程序类型、启动命令、转译函数……
+CIN_CONFIGS::CINConfigDict = NATIVE_CIN_CONFIGS
+# 合并可选的「附加配置」
+ispath("CINConfig_extra.local.jl") && merge!(
+    CIN_CONFIGS,
+    include("CINConfig_extra.local.jl")
+)
+
 # * 获取可执行文件路径配置
 CIN_PATHS::CINPaths = let
     dict::Dict = include("CIN-paths.local.jl")
@@ -253,7 +261,7 @@ end
 const DEFAULT_NAME = string(TYPE_OPENNARS)
 
 """
-主函数
+主函数（不建议覆盖）
 """
 function main(ARGS::Vector{String}=[])
 
@@ -274,7 +282,7 @@ function main(ARGS::Vector{String}=[])
     local path::String = main_CIN_path(name)
 
     # 生成NARS终端 | 不再负责获取类型、可执行文件路径
-    local console = main_console(name, type, path, NATIVE_CIN_CONFIGS; arg_dict) # ! 类型无需固定
+    local console = main_console(name, type, path, CIN_CONFIGS; arg_dict) # ! 类型无需固定
 
     # 启动NARS终端
     not_VSCode_running && @debug console # VSCode（CodeRunner）运行⇒打印
