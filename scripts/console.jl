@@ -212,14 +212,11 @@ end
 
     global not_VSCode_running
 
-    # * 已强制指定⇒返回强制指定的值
-    @isdefined(FORCED_TYPE) && return FORCED_TYPE
+    # * 命令行参数中已指定⇒使用命令行参数值做匹配
+    isnothing(arg_dict["type"]) || return @show match_CIN_name(arg_dict["type"], CIN_paths)
 
     # * 在VSCode中运行⇒返回默认值
     not_VSCode_running || return default_name
-
-    # * 命令行参数中已指定⇒使用命令行参数值做匹配
-    isnothing(arg_dict["type"]) || return match_CIN_name(arg_dict["type"], CIN_paths)
 
     # * 默认情况：请求输入
     return get_valid_NARS_name_from_input(

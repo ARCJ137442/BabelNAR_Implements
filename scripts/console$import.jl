@@ -4,7 +4,8 @@ push!(LOAD_PATH, ROOT_PATH) # 当前项目根目录
 push!(LOAD_PATH, dirname(ROOT_PATH)) # 更上层根目录
 push!(LOAD_PATH, joinpath(dirname(ROOT_PATH), "BabelNAR.jl")) # BabelNAR包目录
 
-not_VSCode_running::Bool = "test" ⊆ pwd()
+"检测是否在VSCode中（使用CodeRunner）执行"
+not_VSCode_running::Bool = "scripts" ⊆ pwd() && contains(@__FILE__, "temp") # tempCodeRunnerFile.julia
 
 # ! 避免「同名异包问题」最好的方式：只从「间接导入的包」里导入「直接导入的包」
 using BabelNAR_Implements
