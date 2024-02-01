@@ -20,45 +20,12 @@
 # 条件引入
 @isdefined(BabelNAR_Implements) || include(raw"console$common.jl")
 
-"""
-用于获取用户输入的「NARS类型」
-- 逻辑：不断判断
-"""
-function get_valid_NARS_type_from_input(
-    valid_types;
-    default_type::CINType,
-    input_prompt::String)::CINType
+"统一的「CIN路径配置」类型"
+const CINPaths = Dict{String,Pair{CINType,String}}
 
-    local inp::String, type::CINType
-
-    while true
-        inp = input(input_prompt)
-        # 输入后空值合并
-        "输入的字符串"
-        local type_str = string(
-            isempty(inp) ? (default_type) :
-            CINType(inp)
-        )
-        "用于对比的字符串" # ! 全部转换成小写字母（忽略大小写）
-        local type_str_comp = lowercase(type_str)
-        local type2_comp::String
-        # * 合法⇒返回
-        for type2 in valid_types
-            type2_str_comp = lowercase(string(type2))
-            # * 条件优先级：相等⇒前缀⇒后缀
-            (type_str_comp === type2_str_comp || # 相等
-             startswith(type2_str_comp, type_str_comp) ||# 前缀也算合法
-             endswith(type2_str_comp, type_str_comp)
-            ) && return type2 # 最后返回的还是「类型」而非「对比用的字符串」
-        end
-        # * 非法⇒警告⇒重试
-        printstyled("Invalid Type $(type_str)!\n"; color=:red)
-    end
-
-    # ! 永远不会运行到这里
-end
-
-begin # * 可执行文件路径
+# * 获取可执行文件路径配置
+CIN_PATHS::CINPaths = let
+    dict::Dict = include("CIN-paths.local.jl")
     #= # * 以下为示例内容（最后更新于2024-01-22 22:32:43 @ Windows 10）
     # ! 文件的上下文由`console.jl`提供
     # 获取文件所在目录的上一级目录（包根目录）
@@ -79,14 +46,80 @@ begin # * 可执行文件路径
         TYPE_PYNARS => "launch-pynars-console-plus.cmd" |> join_root(2, "executables")
     ])
     =#
-    paths::Dict = include("CIN-paths.local.jl")
+
+    # 规整化路径：名 => (CIN模式 => 完整路径)
+    CINPaths(
+        (
+            mode_path isa Pair
+            ? string(name) => (Symbol(first(mode_path)) => string(last(mode_path)))
+            : string(name) => (Symbol(name) => string(mode_path))
+        )
+        for (name, mode_path) in dict
+    )
+end
+
+# 检查路径合法性
+for (name, (mode, path)) in CIN_PATHS
+    @assert ispath(path) "CIN路径不合法：$path"
+end
+
+"根据类型获取可执行文件路径 | 字典结构：`名称 => (CIN类型 => 路径)`"
+main_CIN_path(name::String)::String = last(CIN_PATHS[name])
+
+"根据类型获取可执行文件路径 | 字典结构：`名称 => (CIN类型 => 路径)`"
+main_CIN_type(name::String)::CINType = first(CIN_PATHS[name])
+
+"""
+用于获取用户输入的「NARS类型」
+- 逻辑：不断判断「是否有效」
+    - 有效⇒返回
+    - 无效⇒要求再次输入
+- 字典类型 Dict{名称::String,Pair{CIN类型::CINType,路径::String}}
+    - 结构：`名称 => (CIN类型 => 路径)`
+"""
+function get_valid_NARS_name_from_input(
+    CIN_paths::CINPaths;
+    default_name::String,
+    input_prompt::String="NARS Type [$(join(keys(CIN_paths), '|'))] ($default_name): "
+)::String
+
+    local inp::String, type::CINType
+
+    while true
+        "输入的字符串 默认值为`default_name`"
+        local name_str_index = input(input_prompt, default_name)
+
+        "用于对比的字符串" # ! 全部转换成小写字母（忽略大小写）
+        local name_str_comp = lowercase(name_str_index)
+        "用于对比的配置键"
+        local type2_comp::String
+
+        # * 合法⇒返回 | 优先级：相等⇒前缀⇒后缀⇒被包含⇒包含（原有，输入）
+        for condition_f in [isequal, startswith, endswith, occursin, contains]
+            # * 层层条件过滤
+            for type2::String in keys(CIN_paths)
+
+                type2_str_comp = lowercase(type2)
+                # 最后返回的还是「名称」而非「对比用的字符串」
+                condition_f(type2_str_comp, name_str_comp) && return type2
+            end
+        end
+
+        # * 非法⇒警告⇒重试
+        printstyled("Invalid Type $(name_str_index)!\n"; color=:red)
+    end
+
+    # ! 永远不会运行到这里
 end
 
 # * CIN输出相关 * #
 
 # * 转译CIN输出，生成「具名元组」数据（后续编码成JSON，用于输出）
-@isdefined(main_output_interpret) || (main_output_interpret(::Val{nars_type}, CIN_config::CINConfig, line::String) where {nars_type} = begin
-    local objects::Vector{NamedTuple} = NamedTuple[]
+@soft_def function main_output_interpret(::Val, CIN_config::CINConfig, line::String)
+    # * 现在使用NAVM进行解析
+    return CIN_config.output_interpret(line)
+    # ! ↓ 弃用代码
+    #= local objects::Vector{NamedTuple} = NamedTuple[]
 
     local head = findfirst(r"^\w+:", line) # EXE: XXXX # ! 只截取「开头纯英文，末尾为『:』」的内容
 
@@ -98,8 +131,8 @@ end
         ))
     end
 
-    return objects
-end)
+    return objects =#
+end
 
 """
 用于高亮「输出颜色」的字典
@@ -125,8 +158,8 @@ const output_color_dict = Dict([
 """
 const output_reverse_color_dict = Set([
     NARSOutputType.EXE
-    # NARSOutputType.ANSWER
-    # NARSOutputType.ACHIEVED
+    NARSOutputType.ANSWER
+    NARSOutputType.ACHIEVED
 ])
 
 """
@@ -146,54 +179,65 @@ end
 # * 主函数 * #
 
 # * 获取NARS类型
-@isdefined(main_type) || (main_type(default_type::CINType)::CINType = begin
+@soft_def function main_CIN_name(default_name::String)::String
     global not_VSCode_running
 
-    @isdefined(FORCED_TYPE) ? FORCED_TYPE :
-    not_VSCode_running ? get_valid_NARS_type_from_input(
-        keys(NATIVE_CIN_CONFIGS);
-        default_type,
-        input_prompt="NARS Type [$(join(keys(NATIVE_CIN_CONFIGS)|>collect, '|'))] ($default_type): "
-    ) :
-    TYPE_OPENNARS
-end)
-
-# * 根据类型获取可执行文件路径
-@isdefined(main_path) || (main_path(type::CINType)::String = paths[type])
+    @defined_or FORCED_TYPE (
+        not_VSCode_running
+        ? get_valid_NARS_name_from_input(
+            CIN_PATHS;
+            default_name
+        )
+        : String(TYPE_OPENNARS)
+    )
+end
 
 # * 生成NARS终端
-@isdefined(main_console) || (main_console(type::CINType, path, CIN_configs) = NARSConsole(
+@soft_def main_console(type::CINType, path::String, CIN_configs) = NARSConsole(
     type,
     CIN_configs[type],
     path;
-    input_prompt="BabelNAR.$type> "
-))
+    input_prompt="BabelNAR.$type> ",
+    on_out=(line::String) -> begin
+        local outputs = main_output_interpret(
+            Val(Symbol(type)),
+            CIN_configs[type],
+            line
+        )
+        for output in outputs
+            print_NARSOutput(output)
+        end
+    end
+)
 
-# * 启动
-@isdefined(main_launch) || (main_launch(console) = launch!(
+# * 启动！
+@soft_def main_launch(console) = launch!(
     console,
     ( # 可选的「服务器」
-        (@isdefined IP) && (@isdefined PORT) ?
+        (@isdefined(IP) && @isdefined(PORT)) ?
         (IP, PORT) : tuple()
     )...,
     # *【2024-01-22 23:19:51】使用0.1s的延迟，让CIN先将自身文本输出完，再打印提示词✅
     delay_between_input=0.1
-))
+)
 
 # * 主函数
-@isdefined(main) || function main()
+@soft_def function main()
 
     "<================BabelNAR Console================>" |> println
 
     global not_VSCode_running
 
-    # 获取NARS类型
-    local type::CINType = main_type(TYPE_OPENNARS)
+    # 获取NARS名称
+    local name::String = main_CIN_name(string(TYPE_OPENNARS)) # ! 默认为OpenNARS
 
-    # 根据类型获取可执行文件路径
-    local path::String = main_path(type)
+    # 根据名称获取CIN类型
+    local type::CINType = main_CIN_type(name)
 
-    # 生成NARS终端
+    # 根据名称获取可执行文件路径
+    local path::String = main_CIN_path(name)
+
+    # 生成NARS终端 | 不再负责获取类型、可执行文件路径
     local console = main_console(type, path, NATIVE_CIN_CONFIGS) # ! 类型无需固定
 
     # 启动NARS终端

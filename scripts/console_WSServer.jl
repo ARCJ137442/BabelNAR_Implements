@@ -4,7 +4,7 @@
 =#
 
 # 预先条件引入 # ! 不引入会导致无法使用符号
-@isdefined(BabelNAR_Implements) || include(raw"console$common.jl")
+@defined_or BabelNAR_Implements include(raw"console$common.jl")
 
 "（统一的）消息接收钩子"
 function on_message(consoleWS, connection, message)
@@ -89,7 +89,7 @@ catch err
 end
 
 # * 配置服务器地址信息
-@isdefined(main_address) || function main_address(
+@soft_def function main_address(
     host::Union{AbstractString,Nothing}=nothing,
     port::Union{Int,Nothing}=nothing;
     default_host::String="127.0.0.1",
@@ -114,13 +114,13 @@ end
     )
 end
 
-# * 转换服务器收到的消息
-@isdefined(main_received_convert) || (main_received_convert(::NARSConsoleWithServer, message::String) = (
+# * 转换服务器收到的消息，用于*输入CIN*
+@soft_def main_received_convert(::NARSConsoleWithServer, message::String) = (
     message
-)) # ! 默认为恒等函数，后续用于NAVM转译
+) # ! 默认为恒等函数，后续用于NAVM转译
 
 "覆盖：生成「带Websocket服务器」的NARS终端"
-function main_console(type::CINType, path, CIN_configs)::NARSConsoleWithServer
+function main_console(type::CINType, path::String, CIN_configs)::NARSConsoleWithServer
     # 先定义一个临时函数，将其引用添加进服务器定义——然后添加「正式使用」的方法
     _temp_input_interpreter(x::Nothing) = x
 
@@ -141,7 +141,11 @@ function main_console(type::CINType, path, CIN_configs)::NARSConsoleWithServer
         # 启动服务器
         server_launcher=launchWSServer,
         # 转译输出
-        output_interpreter=(line::String) -> main_output_interpret(Val(Symbol(type)), CIN_configs[type], line),
+        output_interpreter=(line::String) -> main_output_interpret(
+            Val(Symbol(type)),
+            CIN_configs[type],
+            line
+        ),
         # 发送数据 to 客户端
         server_send=(consoleWS::NARSConsoleWithServer, datas::Vector{NamedTuple}) -> begin
             # 只用封装一次JSON
