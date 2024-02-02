@@ -24,9 +24,9 @@ end
 
 "宏：未定义符号时执行代码"
 macro_defined_or(symbol, or) = :(
-    @isdefined($symbol)
-    ? $symbol
-    : $or
+    @isdefined($symbol) ? 
+    $symbol : # !【2024-02-02 16:24:59】JS风格的「行首问号」语法，在Julia 1.9及以下低版本中不可用
+    $or
 ) |> esc
 
 "宏：软定义符号（只有在「符号未定义」时定义变量）"
